@@ -1,0 +1,27 @@
+APP="backend_one"
+USING_DISTILLERY=true
+LINK_SYS_CONFIG="/etc/backend_one/sys.config"
+# AUTO_VERSION=commit-count+git-revision+branch-unless-master
+RELEASE_STORE=deploy@104.167.119.111:releases/
+
+BUILD_HOST="104.167.119.111"
+BUILD_USER="deploy"
+BUILD_AT="/tmp/edeliver/backend_one/builds"
+
+# STAGING_HOSTS="104.167.119.111"
+# STAGING_USER="deploy"
+# DELIVER_TO="/home/deploy/apps" # append the app name here
+
+PRODUCTION_HOSTS="104.233.77.132"
+PRODUCTION_USER="deploy"
+DELIVER_TO="/home/deploy/apps" # append the app name here
+
+# For *Phoenix* projects, symlink prod.secret.exs to our tmp source
+# pre_erlang_get_and_update_deps() {
+#   local _prod_secret_path="/home/builder/prod.secret.exs"
+#   if [ "$TARGET_MIX_ENV" = "prod" ]; then
+#     __sync_remote "
+#       ln -sfn '$_prod_secret_path' '$BUILD_AT/config/prod.secret.exs'
+#     "
+#   fi
+# }
