@@ -1,6 +1,6 @@
 defmodule ReceiptMessage do
   @derive [Poison.Encoder]
-  defstruct [:id, :sellerId, :amount, :date, header: [], rows: []]
+  defstruct [:id, :sellerId, :totalAmount, :date, header: [], rows: []]
 end
 
 defmodule BackendOne.FinancialConsumer do
@@ -50,6 +50,7 @@ defmodule BackendOne.FinancialConsumer do
   defp notify(receipt_message) do
     kv = Transformer.translate_keys(Map.from_struct(receipt_message), [
       {:sellerId, :seller_id},
+      {:totalAmount, :amount},
       {:date, :time, fn v -> Timex.parse!(v, "{ISO:Extended}") end}
     ])
     BackendOne.AccumulatorService.async_add(struct!(Receipt, kv))
