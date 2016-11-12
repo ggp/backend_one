@@ -5,6 +5,7 @@ defmodule BackendOneTest do
 
   @seller_id 42
   @receipt_id 666
+  @receipt_amount 123.56
 
   defmodule RabbitHelper do
     require Logger
@@ -75,6 +76,7 @@ defmodule BackendOneTest do
       "id" => @receipt_id,
       "date" => Timex.format!(at, "{ISO:Extended:Z}"),
       "sellerId" => @seller_id,
+      "totalAmount" => @receipt_amount,
     }
     RabbitHelper.publish(
       BackendOne.FinancialConsumer.__exchange__,
@@ -112,7 +114,11 @@ defmodule BackendOneTest do
       "type" => "stats",
       "seller_id" => unquote(@seller_id),
       "payload" => %{
-        "receipt" => %{ "date" => receipt_dt, "id" => unquote(@receipt_id)},
+        "receipt" => %{
+          "date" => receipt_dt,
+          "id" => unquote(@receipt_id),
+          "amount" => unquote(@receipt_amount),
+        },
         "internal_avg_temperature" => 23.00,
         "external_avg_temperature" => 13.00,
         "people" => 1,
