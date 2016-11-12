@@ -1,3 +1,8 @@
+defmodule ReceiptMessage do
+  @derive [Poison.Encoder]
+  defstruct [:id, :sellerId, :amount, :date, header: [], rows: []]
+end
+
 defmodule BackendOne.FinancialConsumer do
   use GenServer
   require Logger
@@ -11,9 +16,6 @@ defmodule BackendOne.FinancialConsumer do
     GenServer.start_link(__MODULE__, connection, name: __MODULE__)
   end
 
-  ## Callbacks
-
-  @doc false
   def init([connection]) do
     {:ok, channel} = Channel.open(connection)
     Exchange.declare(channel, @exchange, :topic, durable: true)
@@ -30,7 +32,6 @@ defmodule BackendOne.FinancialConsumer do
   end
 
   def handle_info({:basic_deliver, payload, meta}, channel) do
-    # Logger.debug "Consumed payload #{payload} from #{@queue}"
     dispatch_message(payload)
     AMQP.Basic.ack(channel, meta.delivery_tag)
     {:noreply, channel}
@@ -43,13 +44,16 @@ defmodule BackendOne.FinancialConsumer do
 
   defp dispatch_message(message) do
     Logger.debug "Receipt: #{message}"
-    message |> Poison.decode!() |> notify
+    message |> Poison.decode!(as: %ReceiptMessage{}) |> notify
   end
 
-  defp notify(receipt) do
-    send BackendOne.Accumulator, {:receipt, receipt}
+  defp notify(receipt_message) do
+    kv = Transformer.translate_keys(Map.from_struct(receipt_message), [
+      {:sellerId, :seller_id},
+      {:date, :time, fn v -> Timex.parse!(v, "{ISO:Extended}") end}
+    ])
+    BackendOne.AccumulatorService.async_add(struct!(Receipt, kv))
   end
 
-  def __routing_key__, do: @routing_key
   def __exchange__, do: @exchange
 end

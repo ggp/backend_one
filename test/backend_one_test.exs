@@ -6,40 +6,6 @@ defmodule BackendOneTest do
   @seller_id 42
   @receipt_id 666
 
-  defmodule RabbitHelper do
-    require Logger
-    @otp_app Mix.Project.config[:app]
-    @queue "test_queue"
-
-    def mqtt_publish(msg, rabbit_opts \\ []) do
-      amqp_opts = Application.get_env(Mix.Project.config[:app], :amqp) || rabbit_opts
-      Logger.debug(">>> Publish MQTT message: #{inspect msg} with opts: #{inspect amqp_opts}")
-      {:ok, connection} = AMQP.Connection.open(amqp_opts)
-      {:ok, channel} = AMQP.Channel.open(connection)
-      :ok = AMQP.Basic.publish(channel, "", "MQTT", msg)
-    end
-
-    def publish(exchange, rk, msg, rabbit_opts \\ []) do
-      amqp_opts = Application.get_env(Mix.Project.config[:app], :amqp) || rabbit_opts
-      Logger.debug(">>> Publish message: #{inspect msg} on exchange: #{exchange} with rk: #{rk} with opts: #{inspect amqp_opts}")
-      {:ok, connection} = AMQP.Connection.open(amqp_opts)
-      {:ok, channel} = AMQP.Channel.open(connection)
-      AMQP.Exchange.declare(channel, exchange, :topic, durable: true)
-      :ok = AMQP.Basic.publish(channel, exchange, rk, Poison.encode!(msg))
-    end
-
-    def listen_on(exchange, rk, on_msg) do
-      amqp_opts = Application.get_env(@otp_app, :amqp) || []
-      Logger.debug "amqp_opts: #{inspect amqp_opts}"
-      {:ok, connection} = AMQP.Connection.open(amqp_opts)
-      {:ok, channel} = AMQP.Channel.open(connection)
-      AMQP.Exchange.declare(channel, exchange, :topic, durable: true)
-      AMQP.Queue.declare(channel, @queue, durable: false)
-      AMQP.Queue.bind(channel, @queue, exchange, routing_key: rk)
-      AMQP.Queue.subscribe(channel, @queue, on_msg)
-    end
-  end
-
   defp send_internal_temperature(key_values) do
     date_time = Keyword.fetch!(key_values, :date_time)
     value = Keyword.fetch!(key_values, :value)
@@ -86,6 +52,7 @@ defmodule BackendOneTest do
   test "Aggregate and publish internal temperature base on same minute on receipt" do
     to = self
     now = Timex.to_datetime({{2016, 01, 01}, {15, 42, 00}})
+    receipt_dt = Timex.shift(now, seconds: 18)
     RabbitHelper.listen_on("stats", "amount", fn (payload, _meta) ->
       Logger.debug "<<< RECEIVED message in stats queue"
       send(to, {:test_consumer, Poison.decode!(payload)})
@@ -105,18 +72,19 @@ defmodule BackendOneTest do
     send_people_counter(value: -1, date_time: now)
     send_people_counter(value: -1, date_time: Timex.shift(now, minutes: 1))
 
-    receipt_dt = Timex.shift(now, seconds: 18)
-    send_example_receipt receipt_dt
+    send_example_receipt(receipt_dt)
 
+    fdt = Timex.format!(receipt_dt, "{ISO:Extended:Z}")
     assert_receive({:test_consumer, %{
       "type" => "stats",
       "seller_id" => unquote(@seller_id),
       "payload" => %{
-        "receipt" => %{ "date" => receipt_dt, "id" => unquote(@receipt_id)},
+        "receipt" => %{ "date" => fdt, "id" => unquote(@receipt_id)},
         "internal_avg_temperature" => 23.00,
         "external_avg_temperature" => 13.00,
         "people" => 1,
-      }
+        "seller_id" => unquote(@seller_id),
+      },
     }}, 5000)
   end
 end
