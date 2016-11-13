@@ -9,7 +9,7 @@ defmodule BackendOne.Accumulator do
   }
 
   def run(channel, state \\ @initial_state) do
-    {new_state, time} = receive do
+    {new_state, time, seller_id} = receive do
       {:receipt, receipt} ->
         Logger.debug("[BackendOne.Accumulator] receive receipt: #{inspect receipt}")
         t = Map.get(receipt, "date")
@@ -17,18 +17,18 @@ defmodule BackendOne.Accumulator do
           |> Timex.to_datetime
           |> get_time_minutes_rounded
         s = update_state_with_receipt(state, receipt, t)
-        {s, t}
+        {s, t, Map.get(receipt, "seller_id")}
       {:device, message} ->
         Logger.debug("[BackendOne.Accumulator] receive device: #{inspect message}")
         t = get_time_minutes_rounded(Timex.from_unix(message.time))
         s = update_state(state, message, t)
-        {s, t}
+        {s, t, nil}
       msg ->
         Logger.debug("[BackendOne.Accumulator] receive unknown message: #{inspect msg}")
         {state, nil}
     end
     Logger.debug("State was:\n#{inspect state}\nnow is:\n#{inspect new_state}")
-    publish_stats_message(channel, new_state, time)
+    publish_stats_message(channel, new_state, time, seller_id)
     run(channel, new_state)
   end
 
@@ -56,7 +56,7 @@ defmodule BackendOne.Accumulator do
     Map.merge(state, %{ internal_avg_temperature: increase_map_average(state.internal_avg_temperature, message.value, time) })
   end
 
-  defp publish_stats_message(channel, state, time) do
+  defp publish_stats_message(channel, state, time, seller_id) do
     [:internal_avg_temperature, :external_avg_temperature, :people]
       |> Enum.reduce({true, %{}}, fn key, {all, msg} ->
         filled = Map.get(state, key) |> Map.get(Timex.shift(time, minutes: 1))
@@ -65,7 +65,7 @@ defmodule BackendOne.Accumulator do
         {bool(all && filled), Map.put(msg, key, value)}
       end)
       |> merge_receipt(state, time)
-      |> do_publish_stats_message(channel)
+      |> do_publish_stats_message(channel, seller_id)
     state
   end
 
@@ -84,16 +84,20 @@ defmodule BackendOne.Accumulator do
     {bool(filled && value), Map.put(msg, :receipt, value)}
   end
 
-  defp do_publish_stats_message({true, payload}, channel) do
+  defp do_publish_stats_message({true, payload}, channel, seller_id) do
     Logger.info ">>> Send message with payload: #{inspect payload}"
     :ok = AMQP.Basic.publish(
       channel,
       "stats",
       "amount",
-      Poison.encode!(%{ type: "stats", payload: payload}))
+      Poison.encode!(%{
+        type: "stats",
+        seller_id: seller_id,
+        payload: payload,
+      }))
   end
 
-  defp do_publish_stats_message({_, msg}, _) do
+  defp do_publish_stats_message({_, msg}, _, _) do
     Logger.debug "WAIT for send message, now message is #{inspect msg}"
   end
 
