@@ -75,8 +75,19 @@ defmodule BackendOneTest do
     receipt = %{
       "id" => @receipt_id,
       "date" => Timex.format!(at, "{ISO:Extended:Z}"),
-      "sellerId" => seller_id,
-      "totalAmount" => @receipt_amount,
+      "sellerId" => @seller_id,
+      "totalAmount": @receipt_amount,
+      "currency": "€",
+      "items": [%{
+          "quantity": 6,
+          "good": "Lemonade",
+          "amount": 13.80
+        },
+        %{
+          "quantity": 6,
+          "good": "Lemonade",
+          "amount": 13.80
+        }],
     }
     RabbitHelper.publish(
       BackendOne.FinancialConsumer.__exchange__,
