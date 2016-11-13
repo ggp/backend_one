@@ -88,6 +88,7 @@ defmodule BackendOneTest do
   test "Aggregate and publish device data base on same minute of receipt" do
     to = self
     now = Timex.to_datetime({{2016, 01, 01}, {15, 42, 00}})
+    receipt_dt = Timex.shift(now, seconds: 18)
     RabbitHelper.listen_on("stats", "amount", fn (payload, _meta) ->
       Logger.debug "<<< RECEIVED message in stats queue"
       send(to, {:test_consumer, Poison.decode!(payload)})
@@ -107,15 +108,15 @@ defmodule BackendOneTest do
     send_people_counter(value: -1, date_time: now)
     send_people_counter(value: -1, date_time: Timex.shift(now, minutes: 1))
 
-    receipt_dt = Timex.shift(now, seconds: 18)
     send_example_receipt receipt_dt
 
+    fdt = Timex.format!(receipt_dt, "{ISO:Extended:Z}")
     assert_receive({:test_consumer, %{
       "type" => "stats",
       "seller_id" => unquote(@seller_id),
       "payload" => %{
         "receipt" => %{
-          "date" => receipt_dt,
+          "date" => fdt,
           "id" => unquote(@receipt_id),
           "amount" => unquote(@receipt_amount),
         },
@@ -129,6 +130,7 @@ defmodule BackendOneTest do
   # test "Aggregate and publish device data base on same minute on receipt and seller_id" do
   #   to = self
   #   now = Timex.to_datetime({{2016, 01, 01}, {15, 42, 00}})
+  #   receipt_dt = Timex.shift(now, seconds: 18)
   #   RabbitHelper.listen_on("stats", "amount", fn (payload, _meta) ->
   #     Logger.debug "<<< RECEIVED message in stats queue"
   #     send(to, {:test_consumer, Poison.decode!(payload)})
@@ -149,15 +151,15 @@ defmodule BackendOneTest do
   #   send_people_counter(value: -1, date_time: Timex.shift(now, minutes: 1))
   #
   #   send_example_receipt(now, 44)
-  #   receipt_dt = Timex.shift(now, seconds: 18)
   #   send_example_receipt receipt_dt
   #
+  #   fdt = Timex.format!(receipt_dt, "{ISO:Extended:Z}")
   #   assert_receive({:test_consumer, %{
   #     "type" => "stats",
   #     "seller_id" => unquote(@seller_id),
   #     "payload" => %{
   #       "receipt" => %{
-  #         "date" => receipt_dt,
+  #         "date" => fdt,
   #         "id" => unquote(@receipt_id),
   #         "amount" => unquote(@receipt_amount),
   #       },
@@ -167,6 +169,5 @@ defmodule BackendOneTest do
   #     }
   #   }}, 5000)
   # end
-
 
 end
