@@ -11,24 +11,25 @@ defmodule BackendOne do
 
     amqp_opts = Application.get_env(@otp_app, :amqp) || []
     {:ok, connection} = AMQP.Connection.open(amqp_opts)
-    {:ok, channel} = AMQP.Channel.open(connection)
-
-
-    pid = spawn(BackendOne.Accumulator, :run, [channel])
-    Process.register(pid, BackendOne.Accumulator)
-    Logger.debug("Accumulator registered!!!")
 
     # Define workers and child supervisors to be supervised
     children = [
       # Starts a worker by calling: BackendOne.Worker.start_link(arg1, arg2, arg3)
       # worker(BackendOne.Worker, [arg1, arg2, arg3]),
-      supervisor(BackendOne.AMQPSupervisor, []),
+      supervisor(BackendOne.AMQPSupervisor, [connection]),
     ]
 
 
     # See http://elixir-lang.org/docs/stable/elixir/Supervisor.html
     # for other strategies and supported options
     opts = [strategy: :one_for_one, name: BackendOne.Supervisor]
-    Supervisor.start_link(children, opts)
+    {:ok, pid } = Supervisor.start_link(children, opts)
+    {:ok, pid, %{connection: connection}}
+  end
+
+  def stop(state) do
+    Logger.debug("Stop application and close connection ...")
+    ret = AMQP.Connection.close(state.connection)
+    Logger.debug(ret)
   end
 end
