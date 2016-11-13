@@ -17,13 +17,13 @@ defmodule BackendOne.AccumulatorService do
   def handle_cast(%DeviceMessage{} = message, state) do
     {act, agr, msg} = Aggregate.add(state.aggregate, message)
     publish(state.publisher, act, msg)
-    {:noreply, state}
+    {:noreply, Map.put(state, :aggregate, agr)}
   end
 
   def handle_cast(%Receipt{} = message, state) do
     {act, agr, msg} = Aggregate.add(state.aggregate, message)
     publish(state.publisher, act, msg)
-    {:noreply, state}
+    {:noreply, Map.put(state, :aggregate, agr)}
   end
 
   defp publish(publisher, :send, msg), do: publisher.(msg)
