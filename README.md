@@ -1,19 +1,39 @@
 # BackendOne
 
-Clone the project and the execute:
-
+##Compile the cloned project
 ```shell
-$ mix deps.get
-$ mix compile
+mix deps.get
+mix compile
 ```
 
-If you want start with console you can use this command line:
 
+## Run all tests
+
+**Windows**
 ```shell
-$ AMQP_HOST=<rabbit-ip> AMQP_USERNAME=<rabbit-username> AMQP_PASSWORD=<rabbit-password> iex -S mix
+SET AMQP_HOST=`<rabbit-ip>`
+SET AMQP_USERNAME=`<rabbit-username>`
+SET AMQP_PASSWORD=`<rabbit-password>`
+mix test
 ```
 
-# Execute test
+**Unix/Linux/macOS**
 ```shell
-$ AMQP_HOST=<rabbit-ip> AMQP_USERNAME=<rabbit-username> AMQP_PASSWORD=<rabbit-password> mix test
+AMQP_HOST=`<rabbit-ip>` AMQP_USERNAME=`<rabbit-username>` AMQP_PASSWORD=`<rabbit-password>` mix test
+```
+
+
+## Start in console mode
+
+**Windows**
+```shell
+SET AMQP_HOST=`<rabbit-ip>`
+SET AMQP_USERNAME=`<rabbit-username>`
+SET AMQP_PASSWORD=`<rabbit-password>`
+iex -S mix
+```
+
+**Unix/Linux/macOS**
+```shell
+AMQP_HOST=`<rabbit-ip>` AMQP_USERNAME=`<rabbit-username>` AMQP_PASSWORD=`<rabbit-password>` iex -S mix
 ```
